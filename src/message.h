@@ -103,6 +103,10 @@ private:
 #pragma pack(pop)
 
 class Message {
+private:
+    // noncopyable
+    Message(const Message &);
+    Message &operator=(const Message &);
 public:
     Message();
     ~Message();
