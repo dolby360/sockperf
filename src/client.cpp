@@ -30,6 +30,7 @@
 #include "playback.h"
 #include "client.h"
 #include "iohandlers.h"
+#include "input_handlers.h"
 #include "packet.h"
 #include "switches.h"
 
@@ -113,7 +114,7 @@ uint32_t getStartOfRightOutlierBin(){
         startBinEdge += binSize - overflowRemainder;
     }
     return startBinEdge;
-} 
+}
 
 //------------------------------------------------------------------------------
 uint32_t getLeftOutlierBinIndexReserved() {
@@ -700,24 +701,27 @@ ClientBase::~ClientBase() {
 
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
+          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare,
+          class InputHandler>
 Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize,
-       PongModeCare>::Client(int _fd_min, int _fd_max, int _fd_num)
+       PongModeCare, InputHandler>::Client(int _fd_min, int _fd_max, int _fd_num)
     : ClientBase(), m_ioHandler(_fd_min, _fd_max, _fd_num), m_pongModeCare(m_pMsgRequest) {
     os_thread_init(&m_receiverTid);
 }
 
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
+          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare,
+          class InputHandler>
 Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize,
-       PongModeCare>::~Client() {}
+       PongModeCare, InputHandler>::~Client() {}
 
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
+          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare,
+          class InputHandler>
 void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize,
-            PongModeCare>::client_receiver_thread() {
+            PongModeCare, InputHandler>::client_receiver_thread() {
     while (!g_b_exit) {
         client_receive();
     }
@@ -732,9 +736,10 @@ void *client_receiver_thread(void *arg) {
 
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
+          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare,
+          class InputHandler>
 void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize,
-            PongModeCare>::cleanupAfterLoop() {
+            PongModeCare, InputHandler>::cleanupAfterLoop() {
     usleep(100 * 1000); // 0.1 sec - wait for rx packets for last sends (in normal flow)
     if (m_receiverTid.tid) {
         os_thread_kill(&m_receiverTid);
@@ -850,9 +855,10 @@ static int _connect_check(int ifd) {
 
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
+          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare,
+          class InputHandler>
 int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize,
-           PongModeCare>::initBeforeLoop() {
+           PongModeCare, InputHandler>::initBeforeLoop() {
     int rc = SOCKPERF_ERR_NONE;
     if (g_b_exit) return rc;
 
@@ -995,9 +1001,10 @@ int Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration,
 
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
+          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare,
+          class InputHandler>
 void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize,
-            PongModeCare>::doSendThenReceiveLoop() {
+            PongModeCare, InputHandler>::doSendThenReceiveLoop() {
     if (g_pApp->m_const_params.measurement == TIME_BASED) {
         // cycle through all set fds in the array (with wrap around to beginning)
         for (int curr_fds = m_ioHandler.m_fd_min; !g_b_exit; curr_fds = g_fds_array[curr_fds]->next_fd)
@@ -1064,9 +1071,10 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
+          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare,
+          class InputHandler>
 void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize,
-            PongModeCare>::doSendLoop() {
+            PongModeCare, InputHandler>::doSendLoop() {
     // cycle through all set fds in the array (with wrap around to beginning)
     for (int curr_fds = m_ioHandler.m_fd_min; !g_b_exit; curr_fds = g_fds_array[curr_fds]->next_fd)
         client_send_burst(curr_fds);
@@ -1087,9 +1095,10 @@ static inline void playbackCycleDurationWait(const TicksDuration &i_cycleDuratio
 
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
+          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare,
+          class InputHandler>
 void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize,
-            PongModeCare>::doPlayback() {
+            PongModeCare, InputHandler>::doPlayback() {
     usleep(100 * 1000); // wait for receiver thread to start (since we don't use warmup) //TODO:
                         // configure!
     s_startTime.setNowNonInline(); // reduce code size by calling non inline func from slow path
@@ -1120,9 +1129,10 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
+          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare,
+          class InputHandler>
 void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize,
-            PongModeCare>::doHandler() {
+            PongModeCare, InputHandler>::doHandler() {
     int rc = SOCKPERF_ERR_NONE;
 
     rc = initBeforeLoop();
@@ -1141,11 +1151,32 @@ void Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration
 
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo,
-          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
+          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare,
+          class InputHandler>
 void client_handler(int _fd_min, int _fd_max, int _fd_num) {
     Client<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize,
-           PongModeCare> c(_fd_min, _fd_max, _fd_num);
+           PongModeCare, InputHandler> c(_fd_min, _fd_max, _fd_num);
     c.doHandler();
+}
+
+//------------------------------------------------------------------------------
+template <class IoType, class SwitchDataIntegrity, class SwitchActivityInfo,
+          class SwitchCycleDuration, class SwitchMsgSize, class PongModeCare>
+void client_handler(int _fd_min, int _fd_max, int _fd_num)
+{
+#ifdef USING_VMA_EXTRA_API
+    if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type) {
+        client_handler<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize,
+            PongModeCare, SocketXtremeInputHandler>(_fd_min, _fd_max, _fd_num);
+    } else if (g_pApp->m_const_params.is_vmazcopyread) {
+        client_handler<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize,
+            PongModeCare, VmaZCopyReadInputHandler>(_fd_min, _fd_max, _fd_num);
+    } else
+#endif
+    {
+        client_handler<IoType, SwitchDataIntegrity, SwitchActivityInfo, SwitchCycleDuration, SwitchMsgSize,
+            PongModeCare, RecvFromInputHandler>(_fd_min, _fd_max, _fd_num);
+    }
 }
 
 //------------------------------------------------------------------------------
