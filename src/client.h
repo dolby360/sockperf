@@ -212,7 +212,7 @@ private:
             return false;
         }
         if (m_pMsgReply->isClient()) {
-            assert(!(l_fds_ifd->is_multicast && g_pApp->m_const_params.mc_loop_disable));
+            assert(!(g_fds_array[ifd]->is_multicast && g_pApp->m_const_params.mc_loop_disable));
             return true;
         }
 
