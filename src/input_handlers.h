@@ -163,6 +163,110 @@ public:
     {
     }
 };
+
+class VmaZCopyReadInputHandler : public MessageParser<BufferAccumulation> {
+private:
+    SocketRecvData &m_recv_data;
+    int m_fd;
+    ZeroCopyData *m_ptr;
+    int m_non_zcopy_len;
+
+public:
+    inline VmaZCopyReadInputHandler(Message *msg, SocketRecvData &recv_data):
+        MessageParser<BufferAccumulation>(msg),
+        m_recv_data(recv_data),
+        m_fd(0),
+        m_ptr(NULL),
+        m_non_zcopy_len(0)
+    {}
+
+    /** Receive pending data from a socket
+     * @param [in] socket descriptor
+     * @param [out] recvfrom_addr address to save peer address into
+     * @return status code
+     */
+    inline int receive_pending_data(int fd, struct sockaddr_in *recvfrom_addr)
+    {
+        int ret = 0;
+        socklen_t size = sizeof(struct sockaddr_in);
+        int flags = 0;
+
+        m_fd = fd;
+        m_non_zcopy_len = 0;
+        m_ptr = g_zeroCopyData[fd];
+        if (unlikely(!m_ptr)) {
+            return 0;
+        }
+        // Receive the next packet with zero copy API
+        ret = g_vma_api->recvfrom_zcopy(fd, m_ptr->m_pkt_buf, Message::getMaxSize(), &flags,
+                                        (struct sockaddr *)recvfrom_addr, &size);
+
+        if (likely(ret > 0)) {
+            if (flags & MSG_VMA_ZCOPY) {
+                // Zcopy receive is performed
+                m_ptr->m_pkts = (struct vma_packets_t *)m_ptr->m_pkt_buf;
+                m_non_zcopy_len = 0;
+                // Note: function return value is not equal to number of bytes
+                // received. This is not a problem because caller only checks
+                // that retval > 0 to continue processing.
+            } else {
+                // zero-copy not performed so using buffer as a plain old data buffer
+                m_ptr->m_pkts = NULL;
+                m_non_zcopy_len = ret;
+            }
+        }
+
+        if (ret == 0 || errno == EPIPE || os_err_conn_reset()) {
+            /* If no messages are available to be received and the peer has performed an orderly
+             * shutdown,
+             * recv()/recvfrom() shall return 0
+             * */
+            ret = RET_SOCKET_SHUTDOWN;
+            errno = 0;
+        }
+        /* ret < MsgHeader::EFFECTIVE_SIZE
+         * ret value less than MsgHeader::EFFECTIVE_SIZE
+         * is bad case for UDP so error could be actual but it is possible value for TCP
+         */
+        else if (ret < 0 && !os_err_eagain() && errno != EINTR) {
+            recvfromError(fd);
+        }
+
+        return ret;
+    }
+
+    template <class Callback>
+    inline bool iterate_over_buffers(Callback &callback)
+    {
+        assert(m_ptr);
+        if (likely(m_ptr->m_pkts)) {
+            // iterate over zerocopy buffers
+            for (size_t p = 0; p < m_ptr->m_pkts->n_packet_num; ++p) {
+                vma_packet_t &pkt = m_ptr->m_pkts->pkts[p];
+                for (size_t i = 0; i < pkt.sz_iov; ++i) {
+                    bool ok = process_buffer(callback, m_recv_data, (uint8_t *)pkt.iov[i].iov_base,
+                        (int)pkt.iov[i].iov_len);
+                    if (unlikely(!ok)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        } else {
+            // iterate over non-zerocopy buffer
+            assert(m_ptr->m_pkt_buf);
+            return process_buffer(callback, m_recv_data, m_ptr->m_pkt_buf, m_non_zcopy_len);
+        }
+    }
+
+    inline void cleanup()
+    {
+        if (likely(m_ptr && m_ptr->m_pkts)) {
+            g_vma_api->free_packets(m_fd, m_ptr->m_pkts->pkts, m_ptr->m_pkts->n_packet_num);
+            m_ptr->m_pkts = NULL;
+        }
+    }
+};
 #endif // USING_VMA_EXTRA_API
 
 #endif // INPUT_HANDLERS_H_
