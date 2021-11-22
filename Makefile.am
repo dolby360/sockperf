@@ -25,6 +25,7 @@ sockperf_SOURCES = \
 	src/common.h \
 	src/defs.cpp \
 	src/defs.h \
+	src/input_handlers.h \
 	src/iohandlers.cpp \
 	src/iohandlers.h \
 	src/message.cpp \
