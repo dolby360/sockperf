@@ -149,8 +149,6 @@ void close_ifd(int fd, int ifd, fds_data *l_fds_ifd) {
         if (z_ptr && z_ptr->m_pkts) {
             g_vma_api->free_packets(fd, z_ptr->m_pkts->pkts, z_ptr->m_pkts->n_packet_num);
             z_ptr->m_pkts = NULL;
-            z_ptr->m_pkt_index = 0;
-            z_ptr->m_pkt_offset = 0;
         }
 
         g_vma_api->register_recv_callback(fd, NULL, NULL);
