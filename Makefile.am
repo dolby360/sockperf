@@ -29,6 +29,7 @@ sockperf_SOURCES = \
 	src/iohandlers.h \
 	src/message.cpp \
 	src/message.h \
+	src/message_parser.h \
 	src/os_abstract.cpp \
 	src/os_abstract.h \
 	src/packet.cpp \
