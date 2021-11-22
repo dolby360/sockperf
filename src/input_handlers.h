@@ -119,4 +119,50 @@ public:
     }
 };
 
+#ifdef USING_VMA_EXTRA_API
+class SocketXtremeInputHandler : public MessageParser<BufferAccumulation> {
+private:
+    SocketRecvData &m_recv_data;
+    vma_buff_t *m_vma_buff;
+public:
+    inline SocketXtremeInputHandler(Message *msg, SocketRecvData &recv_data):
+        MessageParser<BufferAccumulation>(msg),
+        m_recv_data(recv_data),
+        m_vma_buff(NULL)
+    {}
+
+    /** Receive pending data from a socket
+     * @param [in] socket descriptor
+     * @param [out] recvfrom_addr address to save peer address into
+     * @return status code
+     */
+    inline int receive_pending_data(int fd, struct sockaddr_in *recvfrom_addr)
+    {
+        *recvfrom_addr = g_vma_comps->src;
+        m_vma_buff = g_vma_buff;
+        if (likely(m_vma_buff)) {
+            return m_vma_buff->len;
+        } else {
+            return 0;
+        }
+    }
+
+    template <class Callback>
+    inline bool iterate_over_buffers(Callback &callback)
+    {
+        for (vma_buff_t *cur = m_vma_buff; cur; cur = cur->next) {
+            bool res = process_buffer(callback, m_recv_data, (uint8_t *)cur->payload, cur->len);
+            if (unlikely(!res)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    inline void cleanup()
+    {
+    }
+};
+#endif // USING_VMA_EXTRA_API
+
 #endif // INPUT_HANDLERS_H_
