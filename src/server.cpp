@@ -28,6 +28,7 @@
 
 #include "server.h"
 #include "iohandlers.h"
+#include "input_handlers.h"
 #include "switches.h"
 
 // static members initialization
@@ -153,17 +154,17 @@ void ServerBase::cleanupAfterLoop() {
 //==============================================================================
 
 //------------------------------------------------------------------------------
-template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
-Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::Server(int _fd_min, int _fd_max, int _fd_num)
+template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps, class InputHandler>
+Server<IoType, SwitchActivityInfo, SwitchCalcGaps, InputHandler>::Server(int _fd_min, int _fd_max, int _fd_num)
     : ServerBase(m_ioHandler), m_ioHandler(_fd_min, _fd_max, _fd_num) {}
 
 //------------------------------------------------------------------------------
-template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
-Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::~Server() {}
+template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps, class InputHandler>
+Server<IoType, SwitchActivityInfo, SwitchCalcGaps, InputHandler>::~Server() {}
 
 //------------------------------------------------------------------------------
-template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
-void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop() {
+template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps, class InputHandler>
+void Server<IoType, SwitchActivityInfo, SwitchCalcGaps, InputHandler>::doLoop() {
     int numReady = 0;
     int actual_fd = 0;
 
@@ -233,8 +234,8 @@ void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop() {
 }
 
 //------------------------------------------------------------------------------
-template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
-int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
+template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps, class InputHandler>
+int Server<IoType, SwitchActivityInfo, SwitchCalcGaps, InputHandler>::server_accept(int ifd) {
     bool do_accept = false;
     int active_ifd = ifd;
 
@@ -365,10 +366,26 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
 }
 
 //------------------------------------------------------------------------------
-template <class IoType, class SwitchActivityInfo, class SwitchCheckGaps>
+template <class IoType, class SwitchActivityInfo, class SwitchCheckGaps, class InputHandler>
 void server_handler(int _fd_min, int _fd_max, int _fd_num) {
-    Server<IoType, SwitchActivityInfo, SwitchCheckGaps> s(_fd_min, _fd_max, _fd_num);
+    Server<IoType, SwitchActivityInfo, SwitchCheckGaps, InputHandler> s(_fd_min, _fd_max, _fd_num);
     s.doHandler();
+}
+
+//------------------------------------------------------------------------------
+template <class IoType, class SwitchActivityInfo, class SwitchCheckGaps>
+void server_handler(int _fd_min, int _fd_max, int _fd_num)
+{
+#ifdef USING_VMA_EXTRA_API
+    if (SOCKETXTREME == g_pApp->m_const_params.fd_handler_type) {
+        server_handler<IoType, SwitchActivityInfo, SwitchCheckGaps, SocketXtremeInputHandler>(_fd_min, _fd_max, _fd_num);
+    } else if (g_pApp->m_const_params.is_vmazcopyread) {
+        server_handler<IoType, SwitchActivityInfo, SwitchCheckGaps, VmaZCopyReadInputHandler>(_fd_min, _fd_max, _fd_num);
+    } else
+#endif
+    {
+        server_handler<IoType, SwitchActivityInfo, SwitchCheckGaps, RecvFromInputHandler>(_fd_min, _fd_max, _fd_num);
+    }
 }
 
 //------------------------------------------------------------------------------
