@@ -40,7 +40,7 @@ style_dir=${WORKSPACE}/${prefix}/style
 nproc=$(grep processor /proc/cpuinfo|wc -l)
 make_opt="-j$(($nproc / 2 + 1))"
 if [ $(command -v timeout >/dev/null 2>&1 && echo $?) ]; then
-    timeout_exe="timeout -s SIGKILL 20m"
+    timeout_exe="timeout -s SIGKILL 40m"
 fi
 
 trap "on_exit" INT TERM ILL KILL FPE SEGV ALRM
