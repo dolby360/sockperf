@@ -26,7 +26,7 @@
  * OF SUCH DAMAGE.
  */
 
-#include <cstdint>
+#include <stdint.h>
 
 #include "gtest/gtest.h"
 
