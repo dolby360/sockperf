@@ -27,6 +27,7 @@
  */
 
 #include "gtest/gtest.h"
+#include "common/tap.h"
 
 #include "defs.h"
 #include "message.h"
@@ -36,5 +37,18 @@ GTEST_API_ int main(int argc, char **argv)
   testing::InitGoogleTest(&argc, argv);
   Message::initMaxSize(MAX_PAYLOAD_SIZE);
   Message::initMaxSeqNo(65535);
+
+  char *str = getenv("GTEST_TAP");
+  // Append TAP Listener
+  if (str) {
+      if (0 < strtol(str, NULL, 0)) {
+          testing::TestEventListeners& listeners = testing::UnitTest::GetInstance()->listeners();
+          if (1 == strtol(str, NULL, 0)) {
+              delete listeners.Release(listeners.default_result_printer());
+          }
+          listeners.Append(new tap::TapListener());
+      }
+  }
+
   return RUN_ALL_TESTS();
 }

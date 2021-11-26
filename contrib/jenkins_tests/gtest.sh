@@ -25,7 +25,7 @@ ${WORKSPACE}/configure --prefix=$install_dir
 make -C tests/gtest
 rc=$(($rc+$?))
 
-$timeout_exe $gtest_app --gtest_output=xml:${WORKSPACE}/${prefix}/test-basic.xml
+$timeout_exe env GTEST_TAP=2 $gtest_app --gtest_output=xml:${WORKSPACE}/${prefix}/test-basic.xml
 rc=$(($rc+$?))
 
 set -eE
