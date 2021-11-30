@@ -159,11 +159,8 @@ TEST_F(MessageParserInplaceTest, HandleBadMessage)
     msg.setHeaderToNetwork();
 
     check_process_buffer(recv_data, buf, MsgHeader::EFFECTIVE_SIZE, false);
-    /*
     ASSERT_EQ(recv_data.cur_offset, 0) << "message accumulation is not expected";
     ASSERT_EQ(recv_data.cur_size, recv_data.max_size) << "expected max buffer size";
-    ASSERT_EQ(recv_data.cur_addr, recv_data.buf) << "accumulation pointer should point to the start of the buffer";
-    */
 
     handler.checkReceivedMessages();
 }

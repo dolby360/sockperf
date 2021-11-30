@@ -90,9 +90,8 @@ public:
 #endif /* LOG_TRACE_RECV */
 
         if (ret == 0 || errno == EPIPE || os_err_conn_reset()) {
-            /* If no messages are available to be received and the peer has performed an orderly
-             * shutdown,
-             * recv()/recvfrom() shall return 0
+            /* If no messages are available to be received and the peer has
+             * performed an orderly shutdown, recv()/recvfrom() shall return 0
              * */
             ret = RET_SOCKET_SHUTDOWN;
             errno = 0;
@@ -217,9 +216,8 @@ public:
         }
 
         if (ret == 0 || errno == EPIPE || os_err_conn_reset()) {
-            /* If no messages are available to be received and the peer has performed an orderly
-             * shutdown,
-             * recv()/recvfrom() shall return 0
+            /* If no messages are available to be received and the peer has
+             * performed an orderly shutdown, recv()/recvfrom() shall return 0
              * */
             ret = RET_SOCKET_SHUTDOWN;
             errno = 0;
@@ -238,7 +236,7 @@ public:
     template <class Callback>
     inline bool iterate_over_buffers(Callback &callback)
     {
-        assert(m_ptr);
+        assert(m_ptr && "zero-copy data pointer must be initialized");
         if (likely(m_ptr->m_pkts)) {
             // iterate over zerocopy buffers
             for (size_t p = 0; p < m_ptr->m_pkts->n_packet_num; ++p) {
@@ -254,7 +252,7 @@ public:
             return true;
         } else {
             // iterate over non-zerocopy buffer
-            assert(m_ptr->m_pkt_buf);
+            assert(m_ptr->m_pkt_buf && "data buffer pointer must be initialized");
             return process_buffer(callback, m_recv_data, m_ptr->m_pkt_buf, m_non_zcopy_len);
         }
     }
